@@ -22,15 +22,13 @@ CLASS zcl_abapgit_adt_exp_res DEFINITION
       IMPORTING
         io_request        TYPE REF TO if_adt_rest_request
       RETURNING
-        VALUE(rv_package) TYPE devclass
-      RAISING
-        cx_adt_rest.
+        VALUE(rv_package) TYPE devclass.
 
     METHODS validate_package_exists
       IMPORTING
-        iv_package TYPE devclass
-      RAISING
-        cx_adt_rest.
+        iv_package        TYPE devclass
+      RETURNING
+        VALUE(rv_exists)  TYPE abap_bool.
 
 ENDCLASS.
 
@@ -40,22 +38,31 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
 
   METHOD get.
 
-    DATA lv_zip           TYPE xstring.
+    DATA lv_zip            TYPE xstring.
     DATA ls_local_settings TYPE zif_abapgit_persistence=>ty_repo-local_settings.
-    DATA lo_dot_abapgit   TYPE REF TO zcl_abapgit_dot_abapgit.
-    DATA lv_folder_logic  TYPE string.
-    DATA lv_main_lang     TYPE string.
+    DATA lo_dot_abapgit    TYPE REF TO zcl_abapgit_dot_abapgit.
+    DATA lv_folder_logic   TYPE string.
+    DATA lv_main_lang      TYPE string.
 
     " Read and validate package parameter
     DATA(lv_package) = get_package_name( request ).
-    validate_package_exists( lv_package ).
+
+    IF lv_package IS INITIAL.
+      response->set_status( cl_rest_status_code=>gc_client_error_bad_request ).
+      RETURN.
+    ENDIF.
+
+    IF validate_package_exists( lv_package ) = abap_false.
+      response->set_status( cl_rest_status_code=>gc_client_error_not_found ).
+      RETURN.
+    ENDIF.
 
     " Read optional parameters
     TRY.
         request->get_uri_query_parameter(
           EXPORTING name = 'folderLogic'
           IMPORTING value = lv_folder_logic ).
-      CATCH cx_adt_rest.
+      CATCH cx_root.
         lv_folder_logic = 'PREFIX'.
     ENDTRY.
     IF lv_folder_logic IS INITIAL.
@@ -66,7 +73,7 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
         request->get_uri_query_parameter(
           EXPORTING name = 'mainLanguageOnly'
           IMPORTING value = lv_main_lang ).
-      CATCH cx_adt_rest.
+      CATCH cx_root.
         lv_main_lang = 'false'.
     ENDTRY.
 
@@ -87,35 +94,24 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
           io_dot_abapgit    = lo_dot_abapgit
           iv_show_log       = abap_false ).
       CATCH cx_root INTO DATA(lx_error).
-        RAISE EXCEPTION TYPE cx_adt_rest
-          EXPORTING
-            textid = cx_adt_rest=>create_textid_from_msg_params(
-                       iv_msg_id = '00'
-                       iv_msg_no = '001'
-                       iv_par1   = lx_error->get_text( ) )
-            status = cl_rest_status_code=>gc_server_error_internal.
+        response->set_status( cl_rest_status_code=>gc_server_error_internal ).
+        RETURN.
     ENDTRY.
 
     IF lv_zip IS INITIAL.
-      RAISE EXCEPTION TYPE cx_adt_rest
-        EXPORTING
-          textid = cx_adt_rest=>create_textid_from_msg_params(
-                     iv_msg_id = '00'
-                     iv_msg_no = '001'
-                     iv_par1   = 'Serialization returned empty result' )
-          status = cl_rest_status_code=>gc_server_error_internal.
+      response->set_status( cl_rest_status_code=>gc_server_error_internal ).
+      RETURN.
     ENDIF.
 
     " Return binary ZIP data via the inner HTTP response
     DATA(lo_inner_response) = response->get_inner_rest_response( ).
-    DATA(lo_http_response)  = lo_inner_response->get_server( )->response.
-    lo_http_response->set_header_field(
-      name  = if_http_header_fields=>content_type
-      value = 'application/zip' ).
-    lo_http_response->set_header_field(
-      name  = 'Content-Disposition'
-      value = |attachment; filename="{ lv_package }.zip"| ).
-    lo_http_response->set_data( lv_zip ).
+    lo_inner_response->set_header_field(
+      iv_name  = if_http_header_fields=>content_type
+      iv_value = 'application/zip' ).
+    lo_inner_response->set_header_field(
+      iv_name  = 'Content-Disposition'
+      iv_value = |attachment; filename="{ lv_package }.zip"| ).
+    lo_inner_response->set_binary_data( lv_zip ).
     response->set_status( cl_rest_status_code=>gc_success_ok ).
 
   ENDMETHOD.
@@ -125,19 +121,13 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
 
     DATA lv_package TYPE string.
 
-    io_request->get_uri_query_parameter(
-      EXPORTING name  = 'package'
-      IMPORTING value = lv_package ).
-
-    IF lv_package IS INITIAL.
-      RAISE EXCEPTION TYPE cx_adt_rest
-        EXPORTING
-          textid = cx_adt_rest=>create_textid_from_msg_params(
-                     iv_msg_id = '00'
-                     iv_msg_no = '001'
-                     iv_par1   = 'Missing required parameter: package' )
-          status = cl_rest_status_code=>gc_client_error_bad_request.
-    ENDIF.
+    TRY.
+        io_request->get_uri_query_parameter(
+          EXPORTING name  = 'package'
+          IMPORTING value = lv_package ).
+      CATCH cx_root.
+        RETURN.
+    ENDTRY.
 
     rv_package = to_upper( lv_package ).
 
@@ -150,14 +140,8 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
       INTO @DATA(lv_dummy)
       WHERE devclass = @iv_package.
 
-    IF sy-subrc <> 0.
-      RAISE EXCEPTION TYPE cx_adt_rest
-        EXPORTING
-          textid = cx_adt_rest=>create_textid_from_msg_params(
-                     iv_msg_id = '00'
-                     iv_msg_no = '001'
-                     iv_par1   = |Package { iv_package } does not exist| )
-          status = cl_rest_status_code=>gc_client_error_not_found.
+    IF sy-subrc = 0.
+      rv_exists = abap_true.
     ENDIF.
 
   ENDMETHOD.

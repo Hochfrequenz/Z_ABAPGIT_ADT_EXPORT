@@ -57,16 +57,11 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " Authorization check: user must have display access to the package.
-    " Without this, a missing S_PACKAGE auth would cause a cryptic 500
-    " deep inside abapGit serialization instead of a clean 403.
-    AUTHORITY-CHECK OBJECT 'S_PACKAGE'
-      ID 'DEVCLASS' FIELD lv_package
-      ID 'ACTVT'    FIELD '03'.
-    IF sy-subrc <> 0.
-      response->set_status( cl_rest_status_code=>gc_client_error_forbidden ).
-      RETURN.
-    ENDIF.
+    " Authorization note: we rely on the ADT framework's implicit S_ADT_RES
+    " check and abapGit's internal per-object auth checks during serialization.
+    " An explicit AUTHORITY-CHECK for S_PACKAGE was tried but removed because
+    " many dev systems don't assign S_PACKAGE with DEVCLASS field values,
+    " causing false 403s even for fully authorized developers.
 
     " Read optional parameters
     TRY.

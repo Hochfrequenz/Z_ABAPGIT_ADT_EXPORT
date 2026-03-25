@@ -103,15 +103,16 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
       RETURN.
     ENDIF.
 
-    " Return binary ZIP data via the inner HTTP response
+    " Return binary ZIP data via IF_REST_ENTITY on the inner REST response.
+    " IF_REST_RESPONSE has set_header_field but not set_binary_data;
+    " binary data lives on the entity (IF_REST_ENTITY->set_binary_data).
     DATA(lo_inner_response) = response->get_inner_rest_response( ).
-    lo_inner_response->set_header_field(
-      iv_name  = if_http_header_fields=>content_type
-      iv_value = 'application/zip' ).
     lo_inner_response->set_header_field(
       iv_name  = 'Content-Disposition'
       iv_value = |attachment; filename="{ lv_package }.zip"| ).
-    lo_inner_response->set_binary_data( lv_zip ).
+    DATA(lo_entity) = lo_inner_response->create_entity( ).
+    lo_entity->set_content_type( iv_media_type = 'application/zip' ).
+    lo_entity->set_binary_data( iv_data = lv_zip ).
     response->set_status( cl_rest_status_code=>gc_success_ok ).
 
   ENDMETHOD.

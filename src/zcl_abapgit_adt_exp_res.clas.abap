@@ -102,9 +102,17 @@ CLASS zcl_abapgit_adt_exp_res IMPLEMENTATION.
       CATCH cx_root INTO DATA(lx_error).
         response->set_status( cl_rest_status_code=>gc_server_error_internal ).
         DATA(lo_err_response) = response->get_inner_rest_response( ).
+        " Set machine-readable header so the client can detect folder logic
+        " failures without parsing the (possibly translated) error text.
+        DATA(lv_err_text) = lx_error->get_text( ).
+        IF lv_err_text CS 'folder logic'.
+          lo_err_response->set_header_field(
+            iv_name  = 'X-Abapgit-Folder-Logic-Hint'
+            iv_value = 'FULL' ).
+        ENDIF.
         DATA(lo_err_entity) = lo_err_response->create_entity( ).
         lo_err_entity->set_content_type( iv_media_type = 'text/plain' ).
-        lo_err_entity->set_string_data( lx_error->get_text( ) ).
+        lo_err_entity->set_string_data( lv_err_text ).
         RETURN.
     ENDTRY.
 

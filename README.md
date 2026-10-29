@@ -118,8 +118,8 @@ The calling user needs (typically already granted to any ADT developer):
 
 ## Companion: MCP Server
 
-This repo provides the SAP-side endpoint to export arbitrary ABAP packages in a abapGit compatible format.
-The companion [aibap.mcp](https://github.com/Hochfrequenz/aibap.mcp) provides a MCP tool (`export_package`) that calls this endpoint and allows for a workflow where you vibe code in SAP using the ADT API and then sync to git by exporting the package and commiting and pushing it from your own localhost.
+This repo provides the SAP-side endpoint to export arbitrary ABAP packages in an abapGit-compatible format.
+The companion [aibap.mcp](https://github.com/Hochfrequenz/aibap.mcp) provides an MCP tool (`export_package`) that calls this endpoint and allows for a workflow where you vibe code in SAP using the ADT API and then sync to git by exporting the package and committing and pushing it from your own localhost.
 
 This also allows for a workaround where you don't use git branches in a SAP system (where you could have only 1 active branch at a time per repo):
 Code in SAP via aibap.mcp ➡️ run tests in SAP via aibap.mcp ➡️ export the package using `export_package` tool from aibap.mcp to your localhost ➡️ push to feature branch from localhost ➡️ run CI (e.g. abapLint) ➡️ merge to main ➡️ repeat.

@@ -127,6 +127,6 @@ This approach is "SAP first" instead of "git first" but has way faster roundtrip
 
 ## Verified on
 
-- **System:** S/4HANA on srvhfuhana (SAP_BASIS 756)
+- **System:** SAP S/4HANA, on-premise (SAP_BASIS 756)
 - **Date:** 2026-03-25
 - **Test:** `GET .../packages?package=Z_ADT_MCP_TEST` returned 200 OK, valid ZIP with 15 files (classes, interfaces, function groups, test classes, `.abapgit.xml`)
